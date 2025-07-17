@@ -1,0 +1,460 @@
+{
+  "name": "Best Email Support Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "simple": false,
+        "filters": {},
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -520,
+        -40
+      ],
+      "id": "791f7113-d872-454f-b7f0-eb8bf8c5c19f",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dZqxzU8pDMnYVBfx",
+          "name": "matt@matt-penny.com Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "inputText": "=Subject: {{ $json.subject }}\n\nBody: {{ $json.text }}",
+        "categories": {
+          "categories": [
+            {
+              "category": "Customer Support Tech4U",
+              "description": "This email is related to customer support or a general question and is for my businesses called Tech4U"
+            },
+            {
+              "category": "Sales Enquiry For SmartExpand",
+              "description": "This is email is a sales enquiry and is for my business called SmartExpand"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.textClassifier",
+      "typeVersion": 1.1,
+      "position": [
+        -120,
+        -40
+      ],
+      "id": "733d4b48-f716-4e62-a654-72d5122a9d58",
+      "name": "Text Classifier"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenRouter",
+      "typeVersion": 1,
+      "position": [
+        180,
+        360
+      ],
+      "id": "69c80846-1cdb-49a0-8f5e-c1bd8b82df7e",
+      "name": "OpenRouter Chat Model",
+      "credentials": {
+        "openRouterApi": {
+          "id": "v1aNtjBTbfVqtezA",
+          "name": "OpenRouter account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "smart_desk_knowledge_base",
+        "toolDescription": "Use this to retrieve information about Smart Desk from our Vector Database",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "basic-rag",
+          "mode": "list",
+          "cachedResultName": "basic-rag"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.2,
+      "position": [
+        800,
+        -580
+      ],
+      "id": "1dc1a7c7-b979-4943-8a32-911dfc3d6b42",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "aarXnMEmXDZjp8V2",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        820,
+        -400
+      ],
+      "id": "f5dcbe0e-052b-4397-bc55-cf1b8d5910a2",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "smb36YjJ8Bu6Al0K",
+          "name": "Test OpenAI Account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get all information about all orders",
+        "documentId": {
+          "__rl": true,
+          "value": "1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q",
+          "mode": "list",
+          "cachedResultName": "E-commerce_Orders_with_Names",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 945328607,
+          "mode": "list",
+          "cachedResultName": "E-commerce_Orders_with_Names",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q/edit#gid=945328607"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        1340,
+        -720
+      ],
+      "id": "6d17c600-4ad7-4317-8a77-599676776683",
+      "name": "Return All Orders",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mz5oo3Q5jpk3kNt7",
+          "name": "matt@matt-penny.com Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "descriptionType": "manual",
+        "toolDescription": "Get information about a specific order, the order number must be specified",
+        "documentId": {
+          "__rl": true,
+          "value": "1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q",
+          "mode": "list",
+          "cachedResultName": "E-commerce_Orders_with_Names",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": 945328607,
+          "mode": "list",
+          "cachedResultName": "E-commerce_Orders_with_Names",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1pdO72SF3AL4SU9oZHiN792CtnQigurf9VA9LOdz9y7Q/edit#gid=945328607"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "Order Number",
+              "lookupValue": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('values0_Value', `The order number`, 'string') }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheetsTool",
+      "typeVersion": 4.6,
+      "position": [
+        1180,
+        -660
+      ],
+      "id": "871e4900-2ed1-4489-90b3-a6375d4be061",
+      "name": "Return specific Order",
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "mz5oo3Q5jpk3kNt7",
+          "name": "matt@matt-penny.com Sheets"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Gmail Trigger').item.json.text }}",
+        "options": {
+          "systemMessage": "You are a helpful email assistant who works for Smart Desk. You can help draft emails in response to customer support emails. You have access to a vector database tool that allows you to get information about Smart Desk so that you can better answer the customer's question.\n\nAlways be polite. Never use emojies. Always sign an email off with 'Best, Matt'. Only respond with the email content, nothing else."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        840,
+        -940
+      ],
+      "id": "730c068c-6af2-432e-8423-c53529934d5b",
+      "name": "Customer Support Agent"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Gmail Trigger').item.json.text }}",
+        "options": {
+          "systemMessage": "You are a helpful email assistant that works for SmartExpand, a company that helps businesses expand beyond their own country. You read the incoming sales enquiries emails and you draft an email response. You only ever respond with the email content. If the company is a good fit for us then the goal is to get them onto a call with one of our sales team to learn more about their needs.\n\nAlways be polite. Never use emojies. Be straight forward and to the point. Don't ramble. Only respond with the email body, nothing else. Always sign an email off with 'Best, Matt'\n\nHere is information about our business. Please use this information to create your responses: \n\n🏢 SmartExpand – Company Overview\n\nMission:\nTo simplify and accelerate international expansion for growing businesses by providing legal, HR, tax, and operational support in over 40 countries.\n\nHeadquarters:\nLondon, UK\n\nFounded:\n2019\n\nTeam Size:\n75 global employees\n\nKey Services:\n\t•\tEmployer of Record (EoR) – hire full-time employees without setting up an entity\n\t•\tEntity Setup & Compliance – full support for creating legal entities abroad\n\t•\tInternational Payroll & Tax Filing\n\t•\tCross-Border HR Compliance\n\t•\tVisa Sponsorship & Relocation Support\n\t•\tMarket Entry Strategy\n\nClient Types:\n\t•\tSaaS Startups (Series A–C)\n\t•\tE-commerce Brands\n\t•\tRemote-first Companies\n\t•\tConsulting Firms\n\t•\tFranchises looking to enter new markets\n\nSupported Countries:\nEurope, LATAM, Asia-Pacific, North America, MENA\n\n\nCommon Sales Inquiry Topics & How the Bot Should Respond\n\t1.\t“Can you help us expand to [country]?”\n\t•\tThe bot should confirm support for that country (if available), provide a brief overview of the process (EoR vs entity setup), and offer a relevant case study.\n\t2.\t“What does it cost?”\n\t•\tShare a general pricing range and offer to send a more detailed pricing breakdown based on their needs.\n\t3.\t“Have you worked with SaaS companies?”\n\t•\tMention the GrowFlow case study (SaaS company expanding to Germany) and briefly explain how SmartExpand supported them.\n\t4.\t“What’s your timeline?”\n\t•\tExplain average timelines: 2–4 weeks for EoR onboarding, 2–3 months for full legal entity setup. Offer to provide a tailored timeline.\n\t5.\t“How do you handle local tax compliance?”\n\t•\tProvide a short explanation about working with local tax/legal experts, and offer a link to a compliance resource or guide if available.\n\n⸻\n\n📚 Case Studies\n\n1. GrowFlow – SaaS Expansion to Germany\n\nProblem:\nUS-based SaaS company needed to hire engineers in Germany but didn’t want to open a German entity yet.\n\nSmartExpand Solution:\nUsed Employer of Record model to onboard 4 senior developers within 3 weeks. Managed payroll, tax filings, and employee benefits through SmartExpand’s local partner.\n\nResults:\n\t•\tZero legal setup needed\n\t•\tHires started working in under 30 days\n\t•\tCompany saved an estimated €35,000 on setup and legal costs\n\nTestimonial:\n“SmartExpand made our German expansion seamless. We had top engineers working with us faster than we thought possible.” – CTO, GrowFlow\n\n⸻\n\n2. Kliento – LatAm Customer Support Hub\n\nProblem:\nUK-based e-commerce brand wanted to set up a customer support team in Colombia to handle Spanish-speaking customers.\n\nSmartExpand Solution:\nAdvised on regional differences, hired 7 reps via EoR model, and helped transition to an entity model within 6 months.\n\nResults:\n\t•\t40% reduction in support costs\n\t•\tCSAT scores up 22%\n\t•\tFull handover to internal HR after 6 months\n\n⸻\n\n3. VantaHealth – Regulatory Navigation in APAC\n\nProblem:\nHealthtech startup needed guidance on entering the Japanese market with strict data compliance laws.\n\nSmartExpand Solution:\nCollaborated with local legal experts to outline market entry path. Helped establish a legal entity and assisted with HIPAA-equivalent compliance processes.\n\nResults:\n\t•\tPassed local compliance audits\n\t•\tSecured first enterprise customer within 90 days\n\t•\tCEO praised the “playbook-level clarity” of SmartExpand’s roadmap\n\n⸻\n\n🔧 Pricing Model\n\t•\tEoR Services: Starting at £399 per employee/month (varies by country)\n\t•\tEntity Setup: One-time fee between £5,000–£15,000 depending on complexity\n\t•\tOngoing Compliance Management: Custom packages available\n\t•\tConsulting & Market Entry Strategy: Hourly or project-based\n\n⸻\n\n🧩 Integrations & Tools\n\t•\tSyncs with Deel, Remote, and Gusto for backend payroll processing\n\t•\tIntegrates with Notion, Slack, and Trello for onboarding workflows\n\t•\tAI-powered risk detection for local compliance red flags\n\n⸻\n\n💬 Tone & Branding\n\t•\tFriendly and expert\n\t•\tGlobally-minded, but pragmatic\n\t•\tBusiness-focused, but not boring\n\t•\tA touch of wit is OK if the lead seems casual (e.g., startups)"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        740,
+        -20
+      ],
+      "id": "68829c26-f656-4a76-8dfc-c158660594e0",
+      "name": "Sales Agent"
+    },
+    {
+      "parameters": {
+        "text": "You have a new sales enquiry. I've written a draft response. We should reply sooner rather than later to increase conversion rate.",
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        1740,
+        -20
+      ],
+      "id": "8dbcf8c9-8dd8-40c9-8278-c3bfba0083b2",
+      "name": "Telegram",
+      "webhookId": "eb8fea07-5a39-41f9-b6ef-e3324ecf1d3d",
+      "credentials": {
+        "telegramApi": {
+          "id": "qAo3e0ODQn6Qw06V",
+          "name": "Matts N8N Test Bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Gmail Trigger').item.json.subject }}",
+        "message": "={{ $json.output }}",
+        "options": {
+          "replyTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}",
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1400,
+        -940
+      ],
+      "id": "ecf4ea56-74b1-42a8-b601-ed8e39643f36",
+      "name": "Create Draft",
+      "webhookId": "3fa75f56-0617-48a7-83b3-76e2167d872f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dZqxzU8pDMnYVBfx",
+          "name": "matt@matt-penny.com Gmail"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "draft",
+        "subject": "={{ $('Gmail Trigger').item.json.subject }}",
+        "message": "={{ $json.output }}",
+        "options": {
+          "replyTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}",
+          "threadId": "={{ $('Gmail Trigger').item.json.threadId }}",
+          "sendTo": "={{ $('Gmail Trigger').item.json.from.value[0].address }}"
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        1380,
+        -20
+      ],
+      "id": "e518b796-8248-4ff3-8d3b-6bde6afc8be7",
+      "name": "Create Draft1",
+      "webhookId": "3fa75f56-0617-48a7-83b3-76e2167d872f",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "dZqxzU8pDMnYVBfx",
+          "name": "matt@matt-penny.com Gmail"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenRouter Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Text Classifier",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          },
+          {
+            "node": "Sales Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Text Classifier": {
+      "main": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Sales Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return All Orders": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Return specific Order": {
+      "ai_tool": [
+        [
+          {
+            "node": "Customer Support Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Customer Support Agent": {
+      "main": [
+        [
+          {
+            "node": "Create Draft",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Sales Agent": {
+      "main": [
+        [
+          {
+            "node": "Create Draft1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Create Draft1": {
+      "main": [
+        [
+          {
+            "node": "Telegram",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a361e00f-1e62-4e30-b8bd-c896f7fed23e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "45b0405b1f07eaf385b90bc15a028abff5aeb76441e1bf2e441a789f87e150ed"
+  },
+  "id": "FOlSO742Fyru9Dx6",
+  "tags": [
+    {
+      "createdAt": "2025-07-04T11:57:21.229Z",
+      "updatedAt": "2025-07-04T11:57:21.229Z",
+      "id": "XUBAdBBsJRN1bgnW",
+      "name": "Template"
+    }
+  ]
+}
