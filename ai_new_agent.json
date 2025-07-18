@@ -1,0 +1,795 @@
+{
+  "name": "ai new agent",
+  "nodes": [
+    {
+      "parameters": {
+        "operation": "getAll",
+        "limit": 10,
+        "simple": false,
+        "filters": {
+          "q": "from:8020ai@mail.beehiiv.com OR from:theneuron@newsletter.theneurondaily.com OR from:newsletters-noreply@linkedin.com OR from:extremetech@enews.extremetech.com",
+          "receivedAfter": "={{ new Date(new Date().getTime() - (3 * 24 * 60 * 60 * 1000)).toISOString() }}"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        160,
+        -420
+      ],
+      "id": "a2c32acb-1b60-44f5-b2a3-cd6070fe7b06",
+      "name": "Gmail",
+      "webhookId": "2b3b3433-dff5-4516-b2b8-dfa10fca27c2"
+    },
+    {
+      "parameters": {
+        "content": "### Get AI News Emails\n\nThis node gets the emails from AI newsletters for the past **3 days**",
+        "height": 280
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        100,
+        -520
+      ],
+      "typeVersion": 1,
+      "id": "f5773b79-f287-4989-b7c3-99403f0a10dc",
+      "name": "Sticky Note"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "=12345"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        1400,
+        -200
+      ],
+      "id": "20de5155-a618-4f4d-9825-e147227197d1",
+      "name": "Window Buffer Memory"
+    },
+    {
+      "parameters": {
+        "model": "gpt-4o",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.1,
+      "position": [
+        1260,
+        -200
+      ],
+      "id": "2ce4e765-6058-4085-8a01-837a7fa50a60",
+      "name": "OpenAI Chat Model"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "message.content",
+              "renameField": true,
+              "outputFieldName": "News Extracts"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        680,
+        -420
+      ],
+      "id": "bea07855-fee3-48ed-97be-983ded6a7522",
+      "name": "Aggregate1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are part of the \"This Week in AI\" newsletter team which is one of the best AI newsletters in the world.\n\nYou are given all the top news for the past 7 days in AI. \n\nYou must filter the news and only choose the top 5 news points that is most revolutionary and important.\n\nKeep in mind your target audience are non technical AI enthusiasts. Make sure the news you choose is most relevant for them.\n\n\nOutput the filtered information in the following format:\n\n# News#1 Title: \n[Details]\n\n# News#2 Title:\n[Details]\n \n\nMake sure to: \n- Sort the news in order of importance with the most important one at #1. \n- Don't delete or make up any detail for the news you choose. You're only responsible for filtering, not rewriting or recreating. \n\nNews points: \n\n{{ $json['News Extracts'] }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        900,
+        -420
+      ],
+      "id": "d41b4750-403f-4104-814e-09d57058546d",
+      "name": "OpenAI2"
+    },
+    {
+      "parameters": {
+        "toolDescription": "Perplexity is a web search agent that researches the web in real time to answer your query. You should use Perplexity to gather information for each of the news points you choose. ",
+        "method": "POST",
+        "url": "https://api.perplexity.ai/chat/completions",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{\n  \"model\": \"sonar\",\n  \"messages\": [\n    {\n      \"role\": \"system\",\n      \"content\": \"Act as a professional news researcher who is capable of finding detailed summaries about a news topic from highly reputable sources.\"\n    },\n    {\n      \"role\": \"user\",\n      \"content\": \"{Query}\"\n    }\n  ]\n}\n",
+        "placeholderDefinitions": {
+          "values": [
+            {
+              "name": "Query",
+              "description": "Put the search query in here.",
+              "type": "string"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.toolHttpRequest",
+      "typeVersion": 1.1,
+      "position": [
+        1520,
+        -200
+      ],
+      "id": "48790ec0-1096-44b3-98b8-60b12f178300",
+      "name": "Perplexity"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "intermediateSteps[0].action.messageLog[0].kwargs.tool_call_chunks",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        1800,
+        -580
+      ],
+      "id": "4c0e48a0-3f12-4a8c-80ec-6ef12f38b7ff",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "append",
+              "field": "images_results[0].original"
+            }
+          ]
+        },
+        "options": {
+          "outputFormat": "singleItem"
+        }
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        -260
+      ],
+      "id": "efe5ff44-02d3-4582-bfbd-356d8198f598",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n\"News1\":\"{{ $json.appended_images_results0_original[0] }}\",\n\"News2\": \"{{ $json.appended_images_results0_original[1]}}\",\n\"News3\": \"{{ $json.appended_images_results0_original[2]}}\",\n\"News4\": \"{{ $json.appended_images_results0_original[3] }}\",\n\"News5\": \"{{ $json.appended_images_results0_original[4] }}\"\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2100,
+        -260
+      ],
+      "id": "af129e31-201a-4e1f-b625-dbeb9eea7d45",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.convertkit.com/v3/broadcasts",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "api_secret",
+              "value": "i52RMoeaKCBtp6B5CU5hCvJHcKjD6qIlefGiaWzMBv4"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "subject",
+              "value": "={{ $('Subject Creator').item.json.message.content.replaceAll('\"',\"\") }}"
+            },
+            {
+              "name": "content",
+              "value": "={{ $json.message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        3300,
+        -260
+      ],
+      "id": "6c749495-0560-4182-ab42-06e854dede5a",
+      "name": "Post - ConvertKit "
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Below is the hottest news for this week:\n\n{{ $json.message.content }}",
+        "hasOutputParser": true,
+        "options": {
+          "systemMessage": "# Role\n## Identity: You are a researcher for an AI newsletter.\n\n## Primary Goals: Your job is to research each of the news provided to you and format the research in the desired format below along with an image url to go as the header of each news title.\n\n# Context \n## Background info: You work in \"This Week in AI\" which is one of the biggest AI newsletters in the world. \nYou will be given the hottest AI news for each week. Your job is to research them from reputable sources and organise your research in the desired format. \n\n# Specific Instructions: \n- Make sure to include the source for your research in the output using in text citation. \n\n\n# Tools: \n\n###Perplexity: \nUse this tool to research each news point. \n\n###Get Image URL: \nUse this tool to get the URL of an image you can use as the cover image for each news topic.\n\n# Step by Step Workflow: \n1. Research each news point using Perplexity\n2. Output the research in the desired format. \n\n# Desired Output Format: \n\n# 1. News Title \n[Details from research including in text citations]\n\n# 2. News Title \n[Details from research including in text citations]\n\n# 3. News Title \n[Details from research including in text citations]\n\n# 4. News Title \n[Details from research including in text citations]\n\n# 5. News Title \n[Details from research including in text citations]\n\n- Make sure to keep the research detailed.\n\n- In text citation should be in following format: \nTEXT (https://sourceurl)",
+          "maxIterations": 10,
+          "returnIntermediateSteps": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.7,
+      "position": [
+        1300,
+        -420
+      ],
+      "id": "9689607d-063d-4b41-bda7-c852b6bf568b",
+      "name": "Research Agent"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You work for \"This Week in AI\" which is one of the most popular AI newsletters in the world. \n\nThe tactic your team uses for creating newsletters is to extract the hottest news from other popular newsletters and repurpose it for your own use. \n\nYou are given the scraped text from multiple newsletters below. \n\nYour job is to reformat and clean the information without losing any information. You must extract each news point mentioned along with the details of it underneath. \n\nDon't miss any news points!\n\n\nFollow this format: \n\nNews #1: News Title \nDetails: ...\n\nNews #2: News Title \nDetails: ...\n\nMake sure to include all news points mentioned without losing any relevant information. \n\nNewsletter extracts: \n\n{{ $('Gmail').item.json.text }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        380,
+        -420
+      ],
+      "id": "1761c625-0a8b-4611-aa2a-05db17bdd7f3",
+      "name": "Clean Data"
+    },
+    {
+      "parameters": {
+        "content": "### Extract All News",
+        "height": 280,
+        "width": 460
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        360,
+        -520
+      ],
+      "typeVersion": 1,
+      "id": "6eb2a511-b1d6-4f85-8dd7-9fd3db63c56d",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "url": "https://serpapi.com/search?engine=google_images",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            {
+              "name": "q",
+              "value": "={{ $json.args }}"
+            },
+            {
+              "name": "gl",
+              "value": "us"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2220,
+        -580
+      ],
+      "id": "d1b979ac-a391-4e89-8a48-dbe728f59d9d",
+      "name": "Image Covers"
+    },
+    {
+      "parameters": {
+        "content": "### Choose Top 5 News",
+        "height": 280,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        880,
+        -520
+      ],
+      "typeVersion": 1,
+      "id": "11c70c4c-4e3e-47c8-9e00-de7f65c5879d",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "### Research News \nResearch the each of the 5 news points and provide references.",
+        "height": 320,
+        "width": 380
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1260,
+        -540
+      ],
+      "typeVersion": 1,
+      "id": "f59b5173-5e73-4712-8028-d730c8a3d779",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "### Find Image Covers \nSearch Google for a cover image for each news point.",
+        "height": 280,
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2180,
+        -700
+      ],
+      "typeVersion": 1,
+      "id": "10b85e59-daf0-430a-9a2a-27cd798259f6",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "### CopyWriter \nWrites the newsletter and converts it to HTTP",
+        "height": 280,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2840,
+        -360
+      ],
+      "typeVersion": 1,
+      "id": "94257fa3-c264-436f-91c1-115c4d9cfc3a",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "### Draft on ConvertKit\nMakes a draft on ConvertKit\n",
+        "height": 280,
+        "width": 220
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        3240,
+        -360
+      ],
+      "typeVersion": 1,
+      "id": "76b72603-8cca-4fba-bc9e-06bbd1c30f10",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 8 * * 2"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -140,
+        -420
+      ],
+      "id": "ca005d14-a816-418f-a4ee-c2ba5cc4fac0",
+      "name": "Schedule Trigger"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "GPT-4O-MINI"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are part of the team responsible for the \"This Week in AI\" newsletter. \n\nYour task is to come up with a subject line for this weeks newsletter email. \n\nTo create a subject line follow this guide: \n\n- Create a subject line based off the first news point title. (named #1)\n- Make a subject line from that title that will spark curiousity in the reader. It could be contreversial and even unbeleivable. Your goal is to make a subject line from this title that will get people to click on the email since they feel like they have to know more. \n- The subject line should be maximum 5 words. \n- The subject line should be like a news headline but with added curiosity. For example, \"AI just changed the world forever\"\n\nYour output must only be the subject line and nothing else. \n\nCreate a subject line for this weeks news:\n\n{{ $('Research Agent').item.json.output }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2500,
+        -260
+      ],
+      "id": "a9673bd6-4861-484d-a207-435d22f87ac6",
+      "name": "Subject Creator"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "=anthropic/claude-3.5-sonnet",
+          "mode": "id"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are the copywriter for the \"This Week in AI\" newsletter. Your job is to write this weeks newsletter using the research you are provided by your team. \n\nYou must:\n\n- Maintain all the important information from the research. \n- You must write for a year 3 reading level. \n- You must sound enthusiastic and futuristic. \n- Try to spark curiosity in the reader. \n\nYour output must: \n- Include in text citations in accordance with the research. \n- Be detailed and well written.\n- Maintain the same order of news as the research. \n- Be in HTML format.\n- The citations must be in text and the image url must be used as in text citations. \n- Make sure to convert the in text citation links to hyperlinks.\n- Follow this format: \n\nNews#1 image\n# News#1 Title\n[DETAIL]\n\nNews#2 image\n# News#2 Title\n[DETAIL]\n\nNews#3 image\n# News#3 Title\n[DETAIL]\n\nNews#4 image\n# News#4 Title\n[DETAIL]\n\nNews#5 image\n# News#5 Title\n[DETAIL]\n\n- Some of the images may be big, don't make their width 100%. Make sure to make a smaller and centred.\n- Style the HTML nicely so it looks good.\n- Your output must be plain HTML, with no markdown.\n\nResearch: \n\n{{ $('Research Agent').item.json.output }}\n\nImage URLs for each news point in an array. The order of the urls is the same as the news in the research. Maintain this order in your output: \nNews1 URL: {{ $('Edit Fields').item.json.News1 }}\n\nNews2 URL: {{ $('Edit Fields').item.json.News2 }}\n\nNews3 URL: {{ $('Edit Fields').item.json.News3 }}\n\nNews4 URL: {{ $('Edit Fields').item.json.News4 }}\n\nNews5 URL: {{ $('Edit Fields').item.json.News5 }}\n\n\n\n"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        2900,
+        -260
+      ],
+      "id": "fe926608-e8f1-4e0f-a0a1-1810ecb84815",
+      "name": "Copywriter1"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are part of a team that builds newsletters. \n\nThe researcher has gathered some news for you. Your job is to reword it with the following guidelines: \n\n\n- Maintain all the important information from the research. \n- You must write for a year 3 reading level. \n- You must sound enthusiastic and futuristic. \n- Try to spark curiosity in the reader. \n\nFollow this template for creating the newsletter: \n\nWelcome to this week’s edition of This Week in AI—your go-to newsletter for all things AI! 🤖\n\nSit back, relax, and dive into the most exciting breakthroughs, latest trends, and transformative updates shaping the future of AI!\n\nLet’s get started! 🚀\n\n\n1. DeepSeek-R1 Thrashes OpenAI's o1\nThe spotlight this week shines on DeepSeek, a budding AI startup from China, making waves with its newly launched DeepSeek-R1 model. Designed with robust reasoning capabilities, DeepSeek-R1 has outperformed OpenAI's o1 on many fronts, particularly in mathematics, coding, and general knowledge.\n\nBenchmarks like AIME, MATH-500, and SWE-bench Verified have demonstrated its prowess in tackling complex problems with a human-like approach. The kicker? It’s available under the MIT license, allowing unrestricted commercial use, and it’s far more cost-effective—approximately 90-95% cheaper than OpenAI’s offering.\n\nThis marks yet another milestone in China's rapidly growing AI landscape, featuring models that are challenging their Western counterparts. Read More\n\n\n2. Sam Altman: AGI Isn't Around the Corner\nSam Altman and other AI luminaries continue to maintain a cautious stance on the advent of Artificial General Intelligence (AGI). They suggest that AGI is not an immediate reality, promoting a balanced view of AI's capabilities and limitations.\n\nFor AI enthusiasts and professionals, this serves as a reminder to manage expectations and focus on tangible advancements that current AI technologies offer. Read More\n\n\n\n3. Luma Labs: Ray2 Challenges Sora\nAdvancements in AI video generation are breaking new ground. Luma Labs has reportedly developed a new AI model, Ray2, that surpasses Sora in video generation prowess.\n\nEnhancements in realism and speed are at the core of these innovations, providing exciting possibilities for the media and entertainment industries. Learn More\n\n\n\n\n4. Exploring Longevity: OpenAI's New Venture?\nBuzz about OpenAI potentially partnering with a longevity startup reflects a broader trend: leveraging AI to push the boundaries of healthcare and human longevity.\n\nSuch collaborations are ripe with promise, heralding advancements that might enhance life quality and durability. Read More\n\n\n\n\nMinimize image\nEdit image\nDelete image\n\n\n5. Visionaries: Smart Glasses Inspired by Insects\nInnovative smart glasses, promising new hope for the visually impaired, are reportedly drawing design inspiration from insect anatomy to aid those with macular degeneration.\n\nUtilising advanced optics and AI-driven image processing, these glasses represent the cutting edge of assistive technology, potentially transforming the lives of many. Read More\n\n\nThat’s a wrap for this week’s round-up of AI marvels! .\n\nFollow for more weekly AI news! 🚀\n\nBelow is the research for this week. Make it into a newsletter. \n\n{{ $json.message.content }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1680,
+        200
+      ],
+      "id": "6882705d-9d2d-4ced-bdbf-31afd818048f",
+      "name": "OpenAI1",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "content": "# CHEAPER METHOD \nRewording the aggregated newsletters!",
+        "height": 320,
+        "width": 440
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1660,
+        60
+      ],
+      "typeVersion": 1,
+      "id": "2d0a2f5e-85e4-4968-96e9-76a2ce59f820",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "### Subject Line \nCreates a nice subject line for the email",
+        "height": 280,
+        "width": 300
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2480,
+        -360
+      ],
+      "typeVersion": 1,
+      "id": "293c4703-4574-476e-9b50-46d68ddece58",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "# Aggregate Famous Newsletters\n\nNo need to move a muscle. Just aggregate other peoples news (lol)",
+        "height": 120,
+        "width": 480
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -220,
+        -840
+      ],
+      "typeVersion": 1,
+      "id": "9ff86ff4-7f75-490c-a4da-431ee687e8d3",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Schedule: Every Tuesday Morning",
+        "height": 340,
+        "width": 280,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -200,
+        -580
+      ],
+      "typeVersion": 1,
+      "id": "2899363c-41e6-46fc-8958-3ce50fbe0015",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Writing",
+        "height": 760,
+        "width": 1140,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        2420,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "33c88352-d530-427a-812f-5c24783ec7e5",
+      "name": "Sticky Note11"
+    },
+    {
+      "parameters": {
+        "content": "## Research",
+        "height": 760,
+        "width": 1180,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        1240,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "ab561e11-8c59-4c82-bdad-d1a48117a888",
+      "name": "Sticky Note12"
+    },
+    {
+      "parameters": {
+        "content": "## Choosing Top News\n\n",
+        "height": 760,
+        "width": 1460,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        -220,
+        -720
+      ],
+      "typeVersion": 1,
+      "id": "6dcf436f-cb23-46da-b70b-1099a7041dbe",
+      "name": "Sticky Note13"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Gmail": {
+      "main": [
+        [
+          {
+            "node": "Clean Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Window Buffer Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate1": {
+      "main": [
+        [
+          {
+            "node": "OpenAI2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI2": {
+      "main": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "OpenAI1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Perplexity": {
+      "ai_tool": [
+        [
+          {
+            "node": "Research Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Image Covers",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Subject Creator",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Research Agent": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Clean Data": {
+      "main": [
+        [
+          {
+            "node": "Aggregate1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Image Covers": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Gmail",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Subject Creator": {
+      "main": [
+        [
+          {
+            "node": "Copywriter1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Copywriter1": {
+      "main": [
+        [
+          {
+            "node": "Post - ConvertKit ",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "d04ce8ef-9426-4ecc-86f3-1af8be61d93c",
+  "meta": {
+    "instanceId": "fb6580da805d9d9efc26214b22081bf1d16868796ebfc438124dab44af727940"
+  },
+  "id": "WBYZB9ZtnE8pdEXg",
+  "tags": []
+}

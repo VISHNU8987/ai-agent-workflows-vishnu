@@ -1,0 +1,903 @@
+{
+  "name": "Gmail Customer Service Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $('Gmail Trigger').item.json.snippet }}",
+        "options": {
+          "systemMessage": "=# Overview  \nYou are an AI agent designed to assist users by providing customer support for Greenfield Realty, a real estate company.\n\n## Context  \n- The agent answers FAQs by retrieving information from the Pinecone Vector Store.  \n- It handles appointment scheduling using Calendar tools (read, create, delete events).  \n- It responds to users by formatting proper email-style messages.  \n- Replies should feel professional, friendly, and personalized.  \n- The current date and time are in Central European Time (CET): {{ $now }}.\n\n## Instructions  \n1. **Receive** a chat or email message from the user.  \n2. **Analyze** the user's intent:  \n   - If the user asks for company information (FAQs, services, policies):  \n     - **Query Pinecone Vector Store** and respond with the most relevant information.\n   - If the user requests to book an appointment:  \n     - Follow the Appointment Booking SOP described below.  \n   - If the user requests cancellation of an appointment:  \n     - Use the calendar tools to find and delete the event, and notify the user.\n\n3. **Format the reply as an email**:  \n   - Begin with a greeting using the user's name if available (extract from their email signature or provided information).  \n     - Example: \"Hi John,\"  \n   - Provide a clear, concise, friendly response.  \n   - Always close the message with:  \n     ```\n     Best regards,  \n     Bohdan Saranchuk\n     ```\n\n4. **Tone**:  \n   - Always maintain a polite, professional, and empathetic tone.\n   - Ensure clarity and completeness in all responses.\n\n## Appointment Booking SOP  \n🧠 **Task**: Help the user schedule an appointment efficiently.\n\n### 1. Collect Contact Information  \nIn **one single message**, ask for and collect:  \n- Full name  \n- Email address  \n- Phone number  \n- Location or time zone  \n- Preferred date and time for the appointment  \n\n✅ Gather **all** details before proceeding.\n\n### 2. Offer Available Time Slots  \nAfter collecting contact info:  \n- Use the calendar read tool to view available slots.  \n- Manage internally in CET but offer times in the user's local time zone.  \n- Respect daylight saving time (DST) automatically.  \n- Offer **exactly 4** available slots:  \n  - Each slot must be **60 minutes** long.  \n  - Slots must have **no conflicting events**.  \n  - Appointments must be scheduled at least **12 hours in advance**.\n- **Office Hours**:  \n  - Monday to Friday only  \n  - 09:00–12:00 and 13:00–17:00 CET  \n- 🛑 Do not offer slots on weekends.\n\n### 3. Confirm Booking  \nWhen the user selects a slot:  \n- Verify again that the time slot has no conflicts.  \n- If free, create the event immediately.  \n- If a conflict is found, inform the user politely and offer new available slots.\n\n### 4. Cancel Appointment  \nIf the user wants to cancel:  \n- First, use the memory to identify the event booked by this user before. \n- them use \"Calendar Read\" tool to get the relevant event ID.  \n- Delete it with the calendar delete tool.  \n- Notify the user politely via an email-formatted message.\n\n## Tools  \n- **OpenAI Chat Model**: Reasoning, conversation management.  \n- **Simple Memory**: Store conversation history.  \n- **Pinecone Vector Store**: Retrieve FAQ and company data.  \n- **Calendar Read**: View available/busy times.  \n- **Calendar Create**: Create new events.  \n- **Calendar Delete**: Delete existing events.  \n- **Embeddings OpenAI**: For generating/querying vector embeddings.\n\n## Examples  \n- **Input**: \"What services does Greenfield Realty offer?\"  \n  - **Output**: (Pinecone lookup)  \n    ```\n    Hi John,\n\n    Greenfield Realty specializes in residential property sales, rentals, and property management. Let me know if you have any other questions!\n\n    Best regards,  \n    Bohdan Saranchuk\n    ```\n\n- **Input**: \"I'd like to book a consultation.\"  \n  - **Output**: (Start appointment flow by collecting all contact details, and respond using the email format above.)\n\n## Final Notes  \n- Always extract and use the user's name if available.  \n- Always close the email politely and professionally, signing as \"Bohdan Saranchuk.\"  \n- Manage and display appointment times correctly across time zones without manual conversion.  \n- Provide proactive, clear, and efficient support in every interaction.\n- format text in a way that symbols like these are not visibla in the output: **\n- if you have to send a link just send the URL such as https://meet.google.com/rar-yrmh-jpv instead of formating it like this: [meet.google.com/rar-yrmh-jpv](https://meet.google.com/rar-yrmh-jpv)"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        2440,
+        -120
+      ],
+      "id": "acee8ea4-699f-4330-b05d-6667be0a8d79",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2120,
+        300
+      ],
+      "id": "425a4a85-4472-4489-a1ac-fa474c31ca89",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "TZt602HE4km5MRuB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $('Gmail Trigger').item.json.threadId }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2020,
+        400
+      ],
+      "id": "cf14a534-0cdc-4b53-87ec-f76338584972",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "company_knowledge_base",
+        "toolDescription": "use this tool when you need to retrieve information about the company, such as FAQ",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8ndemo",
+          "mode": "list",
+          "cachedResultName": "n8ndemo"
+        },
+        "options": {
+          "pineconeNamespace": "Customer Facing"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.1,
+      "position": [
+        2340,
+        280
+      ],
+      "id": "db57886e-08fd-4bbc-9942-88ff0f7ad433",
+      "name": "Pinecone Vector Store",
+      "credentials": {
+        "pineconeApi": {
+          "id": "E6BAh3TpBbIsi2uv",
+          "name": "PineconeApi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2340,
+        440
+      ],
+      "id": "9e6532ce-a2a3-4067-a37c-93c3c75e0b02",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "TZt602HE4km5MRuB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Attendees', ``, 'string') }}"
+          ],
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          },
+          "sendUpdates": "all",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2780,
+        280
+      ],
+      "id": "bdd220c6-43f7-4acf-97f4-09422d08f016",
+      "name": "Calendar Create",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2640,
+        280
+      ],
+      "id": "ff988431-8733-4f64-bfb0-b1a7875233ac",
+      "name": "Calendar Read",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "eventId": "={{ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        2920,
+        280
+      ],
+      "id": "d3812a28-7cc3-4a71-8761-19b47748d27a",
+      "name": "Calendar Delete",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "oAuth2",
+        "email": "={{ $('Gmail Trigger').item.json.From.match(/<([^>]+)>/)?.[1] || null }}",
+        "additionalFields": {
+          "customPropertiesUi": {
+            "customPropertiesValues": [
+              {
+                "property": "notes",
+                "value": "={{ $json.message.content.notes }}"
+              }
+            ]
+          },
+          "firstName": "={{ $json.message.content.firstName }}",
+          "lastName": "={{ $json.message.content.lastName }}",
+          "phoneNumber": "={{ $json.message.content.phone }}"
+        },
+        "options": {
+          "resolveData": false
+        }
+      },
+      "type": "n8n-nodes-base.hubspot",
+      "typeVersion": 2.1,
+      "position": [
+        4120,
+        160
+      ],
+      "id": "62015f7a-6a09-4d3e-98b3-174abdecab27",
+      "name": "HubSpot",
+      "credentials": {
+        "hubspotOAuth2Api": {
+          "id": "tr8VYKOjudMypYV3",
+          "name": "HubSpot account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "pollTimes": {
+          "item": [
+            {
+              "mode": "everyMinute"
+            }
+          ]
+        },
+        "filters": {
+          "labelIds": [
+            "INBOX"
+          ],
+          "q": "=after:2025/04/28",
+          "readStatus": "unread"
+        }
+      },
+      "type": "n8n-nodes-base.gmailTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1800,
+        -120
+      ],
+      "id": "76b35046-755e-4237-a8c7-1a2bf159396b",
+      "name": "Gmail Trigger",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "kjOzCQ4FmXEY4EYX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $(\"Gmail Trigger\").item.json.threadId }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2060,
+        40
+      ],
+      "id": "d36f4a75-cd48-4322-82c0-6b843bcc165b",
+      "name": "Simple Memory2"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $(\"Gmail Trigger\").item.json.threadId }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2820,
+        40
+      ],
+      "id": "cc65392b-a0ed-4a6d-9d73-2688c5d696fe",
+      "name": "Simple Memory3"
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $(\"Gmail Trigger\").item.json.threadId }}",
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        3160,
+        40
+      ],
+      "id": "20cefdd7-341e-4953-97ba-9d3b197f0a6e",
+      "name": "Simple Memory4"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "user",
+              "message": "={{ $(\"Gmail Trigger\").item.json.snippet || \"No message\" }}"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        2060,
+        -120
+      ],
+      "id": "b3febd55-cf9f-43de-859b-2731a3666a74",
+      "name": "Store User Messages"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "messages": {
+          "messageValues": [
+            {
+              "type": "ai",
+              "message": "={{ $(\"AI Agent\").first().json.output || \"No reply\" }}"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        2820,
+        -120
+      ],
+      "id": "7f167d49-b511-471b-bac8-11cd23c349e4",
+      "name": "Store Bot Messages"
+    },
+    {
+      "parameters": {
+        "options": {
+          "groupMessages": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryManager",
+      "typeVersion": 1.1,
+      "position": [
+        3160,
+        -120
+      ],
+      "id": "11483f76-2064-4f27-9396-566d75eb6491",
+      "name": "Get All Messages"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "27d53ad1-5363-41e5-9e26-e0944207a649",
+              "name": "conversationHistory",
+              "value": "={{ \n  (() => {\n    const seen = new Set();\n    return $json.messages\n      .map((m) => {\n        const ts = new Date(m.timestamp || new Date()).toISOString().slice(0, 16);\n        const human = m.human?.trim() || '';\n        const ai = m.ai?.trim() || '';\n        const combo = `${human}||${ai}`;\n        if (seen.has(combo)) return null;\n        seen.add(combo);\n        let result = '';\n        if (human) result += `[${ts}] user: ${human}`;\n        if (ai) result += `\\n[${ts}] bot: ${ai}`;\n        return result;\n      })\n      .filter(Boolean)\n      .join('\\n\\n');\n  })()\n}}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        3520,
+        -120
+      ],
+      "id": "3e1f3bc9-8564-466d-83ae-c2ddceb93fc1",
+      "name": "Set Conversation History"
+    },
+    {
+      "parameters": {
+        "operation": "reply",
+        "messageId": "={{ $('Gmail Trigger').item.json.threadId }}",
+        "emailType": "text",
+        "message": "={{ $('AI Agent').item.json.output }}",
+        "options": {
+          "appendAttribution": false
+        }
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3740,
+        -120
+      ],
+      "id": "a911c3a3-6e8f-4213-a836-76c2e7c4bed2",
+      "name": "Email Reply",
+      "webhookId": "ddc46a2e-a647-48bc-96cd-7ec708354619",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "kjOzCQ4FmXEY4EYX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "markAsRead",
+        "messageId": "={{ $json.id }}"
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        3940,
+        -120
+      ],
+      "id": "c37a8e10-a65a-4192-adbc-3a3824f8a8d3",
+      "name": "Mark as Read",
+      "webhookId": "be3ab160-2772-4e05-8762-eebf3bd1628b",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "kjOzCQ4FmXEY4EYX",
+          "name": "Gmail account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "GPT-4O"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "=You are a data extraction assistant. Your task is to extract structured data from a conversation between a client and an assistant. Return only a valid JSON object.\n\nExtract the following fields:\n- firstName\n- lastName\n- email\n- phone\n- notes (summary of key context, 1–3 sentences)\n\nIf any field is missing, return `null`.\n\nConversation:\n\"{{ $('Set Conversation History').item.json.conversationHistory }}\"\n\n### Example:\n\nConversation:\n\"\"\"\nClient: Hi, I’m Jane Doe. I’d like help booking an appointment. My email is jane.doe@example.com and phone is +1 555 123 4567.\nAssistant: Sure! What would you like to schedule?\nClient: Something next week to discuss mortgage options.\n\"\"\"\n\nOutput:\n```json\n{\n  \"firstName\": \"Jane\",\n  \"lastName\": \"Doe\",\n  \"email\": \"jane.doe@example.com\",\n  \"phone\": \"+1 555 123 4567\",\n  \"notes\": \"Client is interested in booking a meeting next week to discuss mortgage options.\"\n}"
+            }
+          ]
+        },
+        "jsonOutput": true,
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        3720,
+        160
+      ],
+      "id": "c5bcc324-a9ac-4503-a558-1e54fd2e89a0",
+      "name": "Structure CRM Data",
+      "credentials": {
+        "openAiApi": {
+          "id": "TZt602HE4km5MRuB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "content": "## New Email Trigger",
+        "height": 240,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1740,
+        -180
+      ],
+      "id": "347a6446-e2fe-41cc-9a48-90027a18fb47",
+      "name": "Sticky Note1"
+    },
+    {
+      "parameters": {
+        "content": "## Save User Message",
+        "height": 340,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2020,
+        -180
+      ],
+      "id": "8d055483-c5ff-4e99-836c-59a1bef65a99",
+      "name": "Sticky Note2"
+    },
+    {
+      "parameters": {
+        "content": "## Save Bot Response",
+        "height": 340,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2780,
+        -180
+      ],
+      "id": "9bcb4770-6044-4882-b99d-f6009e38b2cd",
+      "name": "Sticky Note3"
+    },
+    {
+      "parameters": {
+        "content": "## Load Full Conversation",
+        "height": 340,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3120,
+        -180
+      ],
+      "id": "21023414-8ca6-4a7b-81c2-3ef5a54b525e",
+      "name": "Sticky Note4"
+    },
+    {
+      "parameters": {
+        "content": "## Chat Summary",
+        "height": 260
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3460,
+        -180
+      ],
+      "id": "c86ed803-7509-4aa2-8550-1cdab6edcfb2",
+      "name": "Sticky Note5"
+    },
+    {
+      "parameters": {
+        "content": "## Structure CRM Entry\n",
+        "height": 260,
+        "width": 320
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3700,
+        100
+      ],
+      "id": "f0719b05-0a04-49c7-9015-e65f35d8bf41",
+      "name": "Sticky Note6"
+    },
+    {
+      "parameters": {
+        "content": "## Update CRM",
+        "height": 260,
+        "color": 6
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        4060,
+        100
+      ],
+      "id": "3cbbcfc3-1af3-4ec8-8762-70b4ad7273ea",
+      "name": "Sticky Note7"
+    },
+    {
+      "parameters": {
+        "content": "## Email Reply + Mark as Read",
+        "height": 260,
+        "width": 400,
+        "color": 5
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        3720,
+        -180
+      ],
+      "id": "0269586c-d10e-41be-8a23-dbb198d5084a",
+      "name": "Sticky Note8"
+    },
+    {
+      "parameters": {
+        "content": "## Brain & Memory",
+        "height": 380,
+        "width": 280,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        1980,
+        200
+      ],
+      "id": "462838d5-6d4c-4583-9523-f140aab7f8f0",
+      "name": "Sticky Note9"
+    },
+    {
+      "parameters": {
+        "content": "## Document Search (RAG)",
+        "height": 380,
+        "width": 320,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2280,
+        200
+      ],
+      "id": "54da9d1d-1b9b-4c9e-9244-17a99b0af4b9",
+      "name": "Sticky Note10"
+    },
+    {
+      "parameters": {
+        "content": "## Calendar Tools",
+        "height": 280,
+        "width": 420,
+        "color": 4
+      },
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [
+        2620,
+        200
+      ],
+      "id": "9b1a2062-1384-4e57-9a0a-289042e00fc0",
+      "name": "Sticky Note11"
+    }
+  ],
+  "pinData": {
+    "Gmail Trigger": [
+      {
+        "json": {
+          "id": "19681bd10992070a",
+          "threadId": "19681afc7cc8d82b",
+          "snippet": "sorry, can you re-schedule to 11:00 AM - 12:00 PM On Tue, 29 Apr 2025 at 15:27, &lt;bogdan.saranchuk4@gmail.com&gt; wrote: Hi Bohdan, Your appointment has been successfully scheduled for April 30th",
+          "payload": {
+            "mimeType": "multipart/alternative"
+          },
+          "sizeEstimate": 7707,
+          "historyId": "4442382",
+          "internalDate": "1745933361000",
+          "labels": [
+            {
+              "id": "INBOX",
+              "name": "INBOX"
+            },
+            {
+              "id": "IMPORTANT",
+              "name": "IMPORTANT"
+            },
+            {
+              "id": "CATEGORY_PERSONAL",
+              "name": "CATEGORY_PERSONAL"
+            },
+            {
+              "id": "UNREAD",
+              "name": "UNREAD"
+            }
+          ],
+          "From": "Bohdan Saranchuk <bohdan.saranchuk@gmail.com>",
+          "Subject": "Re: Your services",
+          "To": "bogdan.saranchuk4@gmail.com"
+        }
+      }
+    ]
+  },
+  "connections": {
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Pinecone Vector Store": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Pinecone Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Create": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Read": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Delete": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Store Bot Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gmail Trigger": {
+      "main": [
+        [
+          {
+            "node": "Store User Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HubSpot": {
+      "main": [
+        []
+      ]
+    },
+    "Simple Memory2": {
+      "ai_memory": [
+        [
+          {
+            "node": "Store User Messages",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory3": {
+      "ai_memory": [
+        [
+          {
+            "node": "Store Bot Messages",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory4": {
+      "ai_memory": [
+        [
+          {
+            "node": "Get All Messages",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store User Messages": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Store Bot Messages": {
+      "main": [
+        [
+          {
+            "node": "Get All Messages",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Messages": {
+      "main": [
+        [
+          {
+            "node": "Set Conversation History",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Conversation History": {
+      "main": [
+        [
+          {
+            "node": "Email Reply",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Structure CRM Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Email Reply": {
+      "main": [
+        [
+          {
+            "node": "Mark as Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Structure CRM Data": {
+      "main": [
+        [
+          {
+            "node": "HubSpot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "3a8b22da-a4f3-4594-a022-192c57388513",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7dc90ed6c91ecbc7f7f7fdf48cacd61c1c8f5015816222b624eaf4d545ae40fe"
+  },
+  "id": "de13RdoG5HXMjfo3",
+  "tags": []
+}

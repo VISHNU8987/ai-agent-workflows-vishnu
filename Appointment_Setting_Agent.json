@@ -1,0 +1,315 @@
+{
+  "name": "Appointment Setting Agent",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chatTrigger",
+      "typeVersion": 1.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "a5ac0094-31ea-4428-ab5c-ac2ae432f786",
+      "name": "When chat message received",
+      "webhookId": "3f39fb6b-9447-4f84-810c-ecfbd988dd88"
+    },
+    {
+      "parameters": {
+        "options": {
+          "systemMessage": "=# Overview  \nYou are an AI agent providing customer service for Greenfield Realty, a real estate company.  \n\n## Context  \n- The agent helps users inquire about services, book appointments, and manage calendar events.  \n- When asked for company-specific details (e.g. services, locations, policies), the agent must **retrieve relevant information from the Vector Store DB**.  \n- All date and time operations follow Central European Time (CET): `{{ $now }}`.  \n- Appointments are handled via Google Calendar (read, create, delete).  \n\n## Instructions  \n\n### 1. General Behavior  \n- Always be polite, helpful, and professional.  \n- If a user asks about Greenfield Realty (e.g., services, team, pricing, etc.), use the **Vector Store DB** tool to retrieve the most relevant information.  \n- Keep responses concise and easy to follow.  \n\n### 2. Appointment Booking  \n\n#### Step 1: Collect Contact Information  \nPrompt the user for all of the following in **one single message**:  \n- Full name  \n- Email address  \n- Phone number  \n- Location or time zone  \n- Preferred date and time for the appointment  \n\n✅ Do not proceed to suggest time slots until all information is collected.\n\n#### Step 2: Offer Available Time Slots  \nOnce the info is collected:\n- Use the user's local time zone to offer slots.\n- Internally manage time using CET.\n- Use **Google Calendar Read** to ensure no conflicts.\n- Offer **exactly 4 available slots**, each 60 minutes long.\n- Only offer times:\n  - Monday to Friday  \n  - Morning: 09:00–12:00  \n  - Afternoon: 13:00–17:00  \n  - At least **12 hours in advance**  \n- Never offer:\n  - Weekends (Sat/Sun)\n  - Times overlapping existing events  \n  - Manual time conversion – rely on Google Calendar for DST and local zone handling.\n\n#### Step 3: Booking Confirmation  \nWhen a user selects a slot:  \n- Use **Google Calendar Read** to check for conflicts.  \n- If no conflict: use **Google Calendar Create** to confirm.  \n- If conflict: notify the user and suggest alternatives.  \n\n#### Step 4: Cancel Appointments  \nIf the user wants to cancel:  \n- Use **Google Calendar Read** to get the event ID.  \n- Use **Google Calendar Delete** to remove it.\n\n## Tools  \n- **Google Calendar Read**: View busy/available times  \n- **Google Calendar Create**: Schedule new appointments  \n- **Google Calendar Delete**: Cancel appointments  \n- **Vector Store DB**: Fetch company-specific details (e.g., about Greenfield Realty)  \n- **Embeddings OpenAI**: Used by the Vector Store DB to match queries  \n- **Simple Memory**: Maintain chat context  \n- **OpenAI Chat Model**: Understand and respond to user requests  \n\n## Example Queries  \n- “What are your services at Greenfield Realty?” → Query Vector Store DB  \n- “Can I book a viewing next Tuesday at 10 AM?” → Follow booking steps above  \n- “Cancel my meeting for tomorrow at 3 PM.” → Use Calendar Read, then Calendar Delete  \n\n## Final Notes  \n- Always refer to Greenfield Realty by name in answers for brand consistency.  \n- Automatically check and use relevant tools as described.  \n- Never guess company information — always use **Vector Store DB** for accurate answers.  \n- Never ask about appointment purpose or topic.\n"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.9,
+      "position": [
+        220,
+        0
+      ],
+      "id": "97289ead-9430-4157-bc5a-e59d2f17516b",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o",
+          "mode": "list",
+          "cachedResultName": "gpt-4o"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        220
+      ],
+      "id": "4de679f6-1848-4ebf-b1c9-cbc4511c08ea",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "TZt602HE4km5MRuB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "contextWindowLength": 25
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        40,
+        360
+      ],
+      "id": "449a2023-7cae-4c1c-929b-d431e2b4c14d",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "returnAll": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        660,
+        340
+      ],
+      "id": "ced18134-6d78-4dd9-9f72-73642cb32c9f",
+      "name": "Calendar Read",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "delete",
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "eventId": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Event_ID', ``, 'string') }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        980,
+        340
+      ],
+      "id": "a9bcab16-7182-4c5f-a5c5-b8fcbcf675c4",
+      "name": "Calendar Delete",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "calendar": {
+          "__rl": true,
+          "value": "bogdan.saranchuk4@gmail.com",
+          "mode": "list",
+          "cachedResultName": "bogdan.saranchuk4@gmail.com"
+        },
+        "start": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Start', ``, 'string') }}",
+        "end": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('End', ``, 'string') }}",
+        "additionalFields": {
+          "attendees": [
+            "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('attendees0_Attendees', ``, 'string') }}"
+          ],
+          "conferenceDataUi": {
+            "conferenceDataValues": {
+              "conferenceSolution": "hangoutsMeet"
+            }
+          },
+          "sendUpdates": "all",
+          "summary": "={{ /*n8n-auto-generated-fromAI-override*/ $fromAI('Summary', ``, 'string') }}"
+        }
+      },
+      "type": "n8n-nodes-base.googleCalendarTool",
+      "typeVersion": 1.3,
+      "position": [
+        820,
+        340
+      ],
+      "id": "a8eef79f-372c-48ee-a47a-0af2c09f61ac",
+      "name": "Calendar Create",
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "czzRFvEZ6QqzXb1h",
+          "name": "Google Calendar account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        360,
+        480
+      ],
+      "id": "d7848ebb-1d46-4947-9752-9c23ffa10c37",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "TZt602HE4km5MRuB",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolName": "company_KB",
+        "toolDescription": "use this tool when you need to retrieve info about the company",
+        "pineconeIndex": {
+          "__rl": true,
+          "value": "n8ndemo2",
+          "mode": "list",
+          "cachedResultName": "n8ndemo2"
+        },
+        "options": {
+          "pineconeNamespace": "Greenfield Realty"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStorePinecone",
+      "typeVersion": 1.1,
+      "position": [
+        260,
+        260
+      ],
+      "id": "405a48ca-6430-41fc-aa92-df4482e3528c",
+      "name": "Vector Store DB",
+      "credentials": {
+        "pineconeApi": {
+          "id": "uAUxjUr5lFugPWmI",
+          "name": "PineconeApi account 2"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When chat message received": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Read": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Delete": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calendar Create": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Vector Store DB",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Vector Store DB": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "b036228a-9c86-4008-9ed6-92de5fb03b8e",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "7dc90ed6c91ecbc7f7f7fdf48cacd61c1c8f5015816222b624eaf4d545ae40fe"
+  },
+  "id": "h0yK8B1bUijqgD4n",
+  "tags": []
+}

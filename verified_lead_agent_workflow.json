@@ -1,0 +1,1050 @@
+{
+  "name": "AI Lead Generation Agent - Efficient",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 2
+            }
+          ]
+        }
+      },
+      "id": "lead_discovery_trigger",
+      "name": "Lead Discovery Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "requestMethod": "GET",
+        "url": "https://api.apollo.io/v1/mixed_people/search",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Cache-Control",
+                "value": "no-cache"
+              }
+            ]
+          },
+          "queryParameters": {
+            "parameters": [
+              {
+                "name": "per_page",
+                "value": "25"
+              },
+              {
+                "name": "person_titles",
+                "value": "CEO,CTO,VP,Director,Manager"
+              },
+              {
+                "name": "organization_num_employees_ranges",
+                "value": "11,51,101,501"
+              },
+              {
+                "name": "organization_locations",
+                "value": "United States"
+              }
+            ]
+          }
+        }
+      },
+      "id": "apollo_lead_discovery",
+      "name": "Apollo Lead Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        460,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "apollo_api_key",
+          "name": "Apollo API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process and enrich lead data\nconst leads = $input.all();\nconst enrichedLeads = [];\n\nfor (const lead of leads) {\n  const person = lead.json.person;\n  const organization = lead.json.organization;\n  \n  // Skip if no email or already contacted\n  if (!person.email || person.email.includes('noreply')) continue;\n  \n  const enrichedLead = {\n    // Personal Info\n    firstName: person.first_name,\n    lastName: person.last_name,\n    fullName: `${person.first_name} ${person.last_name}`,\n    email: person.email,\n    phone: person.phone_numbers?.[0]?.sanitized_number || '',\n    title: person.title,\n    linkedinUrl: person.linkedin_url,\n    \n    // Company Info\n    companyName: organization.name,\n    companyIndustry: organization.industry,\n    companySize: organization.estimated_num_employees,\n    companyWebsite: organization.website_url,\n    companyLocation: organization.primary_location?.city + ', ' + organization.primary_location?.state,\n    \n    // Enrichment for AI\n    personalizationData: {\n      recentNews: organization.short_description || '',\n      painPoints: getPainPointsByIndustry(organization.industry),\n      companyTriggers: getCompanyTriggers(organization),\n      personalTriggers: getPersonalTriggers(person)\n    },\n    \n    // Tracking\n    status: 'discovered',\n    lastContactDate: null,\n    emailsSent: 0,\n    callAttempts: 0,\n    meetingScheduled: false,\n    createdAt: new Date().toISOString(),\n    \n    // Lead Scoring\n    leadScore: calculateLeadScore(person, organization)\n  };\n  \n  enrichedLeads.push({ json: enrichedLead });\n}\n\n// Helper functions\nfunction getPainPointsByIndustry(industry) {\n  const painPoints = {\n    'Technology': 'scaling development, technical debt, security',\n    'Healthcare': 'patient experience, compliance, operational efficiency',\n    'Finance': 'digital transformation, customer acquisition, compliance',\n    'Manufacturing': 'supply chain, automation, quality control',\n    'Retail': 'customer experience, inventory management, omnichannel',\n    'default': 'growth, efficiency, customer satisfaction'\n  };\n  return painPoints[industry] || painPoints.default;\n}\n\nfunction getCompanyTriggers(org) {\n  const triggers = [];\n  if (org.funding_total > 0) triggers.push('recent funding');\n  if (org.estimated_num_employees > 100) triggers.push('scaling team');\n  if (org.founded_year > 2018) triggers.push('growing startup');\n  return triggers.join(', ');\n}\n\nfunction getPersonalTriggers(person) {\n  const triggers = [];\n  if (person.title.includes('New') || person.title.includes('Recently')) triggers.push('new role');\n  if (person.title.includes('VP') || person.title.includes('Director')) triggers.push('decision maker');\n  return triggers.join(', ');\n}\n\nfunction calculateLeadScore(person, org) {\n  let score = 0;\n  \n  // Title scoring\n  if (person.title.includes('CEO') || person.title.includes('Founder')) score += 30;\n  else if (person.title.includes('VP') || person.title.includes('Director')) score += 25;\n  else if (person.title.includes('Manager')) score += 15;\n  \n  // Company size scoring\n  if (org.estimated_num_employees > 500) score += 25;\n  else if (org.estimated_num_employees > 100) score += 20;\n  else if (org.estimated_num_employees > 50) score += 15;\n  \n  // Industry fit (adjust based on your services)\n  const highValueIndustries = ['Technology', 'Finance', 'Healthcare'];\n  if (highValueIndustries.includes(org.industry)) score += 20;\n  \n  return score;\n}\n\nreturn enrichedLeads.filter(lead => lead.json.leadScore > 40);"
+      },
+      "id": "lead_enrichment",
+      "name": "Lead Enrichment & Scoring",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "firstName": "={{ $json.firstName }}",
+            "lastName": "={{ $json.lastName }}",
+            "email": "={{ $json.email }}",
+            "phone": "={{ $json.phone }}",
+            "title": "={{ $json.title }}",
+            "companyName": "={{ $json.companyName }}",
+            "companyIndustry": "={{ $json.companyIndustry }}",
+            "companySize": "={{ $json.companySize }}",
+            "leadScore": "={{ $json.leadScore }}",
+            "status": "={{ $json.status }}",
+            "createdAt": "={{ $json.createdAt }}",
+            "lastContactDate": "={{ $json.lastContactDate }}",
+            "emailsSent": "={{ $json.emailsSent }}",
+            "callAttempts": "={{ $json.callAttempts }}",
+            "meetingScheduled": "={{ $json.meetingScheduled }}"
+          }
+        },
+        "options": {
+          "cellFormat": "USER_ENTERED"
+        }
+      },
+      "id": "save_to_sheets",
+      "name": "Save Leads to Google Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        900,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatInput": "Generate a personalized cold email for {{$json.firstName}} {{$json.lastName}} who is {{$json.title}} at {{$json.companyName}}.\n\nCompany Details:\n- Industry: {{$json.companyIndustry}}\n- Size: {{$json.companySize}} employees\n- Location: {{$json.companyLocation}}\n- Pain Points: {{$json.personalizationData.painPoints}}\n- Triggers: {{$json.personalizationData.companyTriggers}}\n\nEmail Requirements:\n- Subject line should be intriguing and personalized\n- Maximum 150 words\n- Professional but conversational tone\n- Include specific value proposition for their industry\n- Clear call to action\n- No aggressive sales language\n- Include one specific insight about their company or industry\n\nFormat response as:\nSUBJECT: [subject line]\nBODY: [email body]\n\nFocus on how our [YOUR SERVICE] can help solve their specific challenges in {{$json.companyIndustry}}.",
+        "options": {
+          "temperature": 0.7,
+          "maximumTokens": 500
+        }
+      },
+      "id": "ai_email_generation",
+      "name": "AI Email Generation",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        1120,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_api",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI generated email\nconst aiResponse = $input.first().json.choices[0].message.content;\nconst leadData = $input.first().json;\n\n// Extract subject and body\nconst subjectMatch = aiResponse.match(/SUBJECT:\\s*(.+?)\\n/i);\nconst bodyMatch = aiResponse.match(/BODY:\\s*([\\s\\S]+)/i);\n\nconst subject = subjectMatch ? subjectMatch[1].trim() : `Quick question about ${leadData.companyName}`;\nconst body = bodyMatch ? bodyMatch[1].trim() : aiResponse;\n\nreturn {\n  json: {\n    ...leadData,\n    emailSubject: subject,\n    emailBody: body,\n    emailGenerated: true,\n    emailGeneratedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "parse_email_content",
+      "name": "Parse Email Content",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "your-email@yourdomain.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "={{ $json.emailSubject }}",
+        "text": "={{ $json.emailBody }}",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "X-Lead-ID",
+                "value": "={{ $json.email }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "send_cold_email",
+      "name": "Send Cold Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp_credentials",
+          "name": "SMTP Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "email_sent",
+            "emailsSent": "={{ $json.emailsSent + 1 }}",
+            "lastContactDate": "={{ new Date().toISOString() }}",
+            "firstEmailSentAt": "={{ new Date().toISOString() }}"
+          }
+        },
+        "options": {
+          "lookupColumn": "email",
+          "lookupValue": "={{ $json.email }}"
+        }
+      },
+      "id": "update_email_status",
+      "name": "Update Email Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        1780,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "amount": 5,
+        "unit": "days"
+      },
+      "id": "wait_5_days",
+      "name": "Wait 5 Days",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "read",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "options": {
+          "range": "A:Z"
+        }
+      },
+      "id": "check_lead_status",
+      "name": "Check Lead Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2220,
+        300
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "no_response_condition",
+              "leftValue": "={{ $json.status }}",
+              "rightValue": "email_sent",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_if_no_response",
+      "name": "Check If No Response",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "headerAuth",
+        "requestMethod": "POST",
+        "url": "https://api.vapi.ai/call",
+        "options": {
+          "headers": {
+            "parameters": [
+              {
+                "name": "Content-Type",
+                "value": "application/json"
+              }
+            ]
+          },
+          "body": {
+            "bodyType": "json",
+            "jsonBody": "{\n  \"assistantId\": \"your_vapi_assistant_id\",\n  \"customer\": {\n    \"number\": \"{{ $json.phone }}\",\n    \"name\": \"{{ $json.firstName }} {{ $json.lastName }}\"\n  },\n  \"assistantOverrides\": {\n    \"variableValues\": {\n      \"firstName\": \"{{ $json.firstName }}\",\n      \"companyName\": \"{{ $json.companyName }}\",\n      \"industry\": \"{{ $json.companyIndustry }}\",\n      \"title\": \"{{ $json.title }}\",\n      \"painPoints\": \"{{ $json.personalizationData.painPoints }}\"\n    }\n  }\n}"
+          }
+        }
+      },
+      "id": "initiate_cold_call",
+      "name": "Initiate Cold Call",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [
+        2660,
+        240
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "vapi_api_key",
+          "name": "Vapi API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "call-webhook",
+        "options": {}
+      },
+      "id": "call_completion_webhook",
+      "name": "Call Completion Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process call completion data\nconst callData = $input.first().json;\nconst leadEmail = callData.customer?.metadata?.email || '';\n\n// Analyze call outcome\nconst transcript = callData.transcript || '';\nconst callDuration = callData.duration || 0;\n\n// AI analysis of call outcome\nconst callAnalysis = {\n  connected: callData.status === 'completed',\n  duration: callDuration,\n  transcript: transcript,\n  sentiment: analyzeSentiment(transcript),\n  outcome: determineCallOutcome(transcript),\n  nextAction: determineNextAction(transcript),\n  meetingInterest: checkMeetingInterest(transcript),\n  callSummary: generateCallSummary(transcript)\n};\n\nfunction analyzeSentiment(transcript) {\n  const positiveWords = ['interested', 'yes', 'sounds good', 'tell me more', 'schedule'];\n  const negativeWords = ['not interested', 'no', 'busy', 'remove', 'stop calling'];\n  \n  const positiveCount = positiveWords.filter(word => \n    transcript.toLowerCase().includes(word)\n  ).length;\n  \n  const negativeCount = negativeWords.filter(word => \n    transcript.toLowerCase().includes(word)\n  ).length;\n  \n  if (positiveCount > negativeCount) return 'positive';\n  if (negativeCount > positiveCount) return 'negative';\n  return 'neutral';\n}\n\nfunction determineCallOutcome(transcript) {\n  const lowerTranscript = transcript.toLowerCase();\n  \n  if (lowerTranscript.includes('schedule') || lowerTranscript.includes('meeting')) {\n    return 'meeting_requested';\n  } else if (lowerTranscript.includes('interested') || lowerTranscript.includes('tell me more')) {\n    return 'interested';\n  } else if (lowerTranscript.includes('not interested') || lowerTranscript.includes('no thanks')) {\n    return 'not_interested';\n  } else if (lowerTranscript.includes('call back') || lowerTranscript.includes('later')) {\n    return 'call_back_later';\n  }\n  return 'no_clear_outcome';\n}\n\nfunction determineNextAction(transcript) {\n  const outcome = determineCallOutcome(transcript);\n  \n  switch (outcome) {\n    case 'meeting_requested':\n      return 'schedule_meeting';\n    case 'interested':\n      return 'send_followup_email';\n    case 'not_interested':\n      return 'mark_as_closed';\n    case 'call_back_later':\n      return 'schedule_callback';\n    default:\n      return 'add_to_nurture_sequence';\n  }\n}\n\nfunction checkMeetingInterest(transcript) {\n  const meetingKeywords = ['meeting', 'call', 'schedule', 'available', 'calendar'];\n  return meetingKeywords.some(keyword => \n    transcript.toLowerCase().includes(keyword)\n  );\n}\n\nfunction generateCallSummary(transcript) {\n  if (!transcript) return 'No transcript available';\n  \n  // Simple summary - in production, use AI for better summarization\n  const sentences = transcript.split('.').filter(s => s.length > 20);\n  if (sentences.length <= 3) return transcript;\n  \n  return sentences.slice(0, 3).join('. ') + '...';\n}\n\nreturn {\n  json: {\n    leadEmail: leadEmail,\n    callData: callData,\n    callAnalysis: callAnalysis,\n    processedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process_call_data",
+      "name": "Process Call Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.callAnalysis.nextAction }}",
+            "callAttempts": "={{ $json.callAttempts + 1 }}",
+            "lastCallDate": "={{ new Date().toISOString() }}",
+            "callOutcome": "={{ $json.callAnalysis.outcome }}",
+            "callSentiment": "={{ $json.callAnalysis.sentiment }}",
+            "callSummary": "={{ $json.callAnalysis.callSummary }}",
+            "callDuration": "={{ $json.callAnalysis.duration }}",
+            "meetingInterest": "={{ $json.callAnalysis.meetingInterest }}"
+          }
+        },
+        "options": {
+          "lookupColumn": "email",
+          "lookupValue": "={{ $json.leadEmail }}"
+        }
+      },
+      "id": "update_call_status",
+      "name": "Update Call Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        3320,
+        240
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "meeting_interest_condition",
+              "leftValue": "={{ $json.callAnalysis.meetingInterest }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_meeting_interest",
+      "name": "Check Meeting Interest",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        3540,
+        240
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatInput": "Based on this call transcript, extract the preferred meeting time mentioned by the prospect:\n\nTranscript: {{ $json.callAnalysis.transcript }}\n\nExtract:\n1. Preferred day/date (if mentioned)\n2. Preferred time (if mentioned)\n3. Time zone (if mentioned)\n4. Any scheduling constraints\n\nIf no specific time is mentioned, suggest 3 professional meeting slots for next week.\n\nFormat response as JSON:\n{\n  \"preferredTime\": \"YYYY-MM-DD HH:MM\",\n  \"timeZone\": \"America/New_York\",\n  \"constraints\": \"any constraints mentioned\",\n  \"suggestedSlots\": [\n    \"YYYY-MM-DD HH:MM\",\n    \"YYYY-MM-DD HH:MM\",\n    \"YYYY-MM-DD HH:MM\"\n  ]\n}",
+        "options": {
+          "temperature": 0.3,
+          "maximumTokens": 300
+        }
+      },
+      "id": "extract_meeting_preferences",
+      "name": "Extract Meeting Preferences",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        3760,
+        180
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_api",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "listCalendars"
+      },
+      "id": "get_calendar_list",
+      "name": "Get Calendar List",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        3980,
+        180
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "google_calendar_oauth",
+          "name": "Google Calendar OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse AI response and check calendar availability\nconst aiResponse = JSON.parse($input.first().json.choices[0].message.content);\nconst calendarId = $input.all()[1].json[0].id; // Primary calendar\n\n// Check if preferred time is available\nconst preferredTime = aiResponse.preferredTime;\nconst suggestedSlots = aiResponse.suggestedSlots;\n\n// For demo purposes, assuming slots are available\n// In production, you'd check actual calendar availability\n\nconst selectedTime = preferredTime || suggestedSlots[0];\n\nreturn {\n  json: {\n    calendarId: calendarId,\n    selectedTime: selectedTime,\n    timeZone: aiResponse.timeZone || 'America/New_York',\n    constraints: aiResponse.constraints,\n    meetingScheduled: true\n  }\n};"
+      },
+      "id": "process_scheduling_data",
+      "name": "Process Scheduling Data",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        4200,
+        180
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "create",
+        "calendarId": "={{ $json.calendarId }}",
+        "start": "={{ $json.selectedTime }}",
+        "end": "={{ new Date(new Date($json.selectedTime).getTime() + 30*60000).toISOString() }}",
+        "subject": "Sales Meeting - {{ $json.companyName }}",
+        "description": "Meeting with {{ $json.firstName }} {{ $json.lastName }} from {{ $json.companyName }}\\n\\nDiscussion points:\\n- {{ $json.personalizationData.painPoints }}\\n\\nCall Summary:\\n{{ $json.callAnalysis.callSummary }}",
+        "attendees": "={{ $json.email }}",
+        "options": {
+          "sendNotifications": true
+        }
+      },
+      "id": "create_meeting",
+      "name": "Create Meeting",
+      "type": "n8n-nodes-base.googleCalendar",
+      "typeVersion": 1,
+      "position": [
+        4420,
+        180
+      ],
+      "credentials": {
+        "googleCalendarOAuth2Api": {
+          "id": "google_calendar_oauth",
+          "name": "Google Calendar OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "meeting_scheduled",
+            "meetingScheduled": true,
+            "meetingDateTime": "={{ $json.selectedTime }}",
+            "meetingLink": "={{ $json.htmlLink }}",
+            "lastContactDate": "={{ new Date().toISOString() }}"
+          }
+        },
+        "options": {
+          "lookupColumn": "email",
+          "lookupValue": "={{ $json.leadEmail }}"
+        }
+      },
+      "id": "update_meeting_status",
+      "name": "Update Meeting Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        4640,
+        180
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "fromEmail": "your-email@yourdomain.com",
+        "toEmail": "={{ $json.email }}",
+        "subject": "Meeting Confirmed - {{ $json.companyName }}",
+        "text": "Hi {{ $json.firstName }},\\n\\nGreat speaking with you today! I've scheduled our meeting for {{ $json.selectedTime }}.\\n\\nMeeting Details:\\n\ud83d\udcc5 Date: {{ $json.selectedTime }}\\n\ud83d\udd50 Duration: 30 minutes\\n\ud83d\udce7 Meeting Link: {{ $json.htmlLink }}\\n\\nLooking forward to discussing how we can help {{ $json.companyName }} with {{ $json.personalizationData.painPoints }}.\\n\\nBest regards,\\n[Your Name]"
+      },
+      "id": "send_meeting_confirmation",
+      "name": "Send Meeting Confirmation",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        4860,
+        180
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp_credentials",
+          "name": "SMTP Credentials"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "path": "email-webhook",
+        "options": {}
+      },
+      "id": "email_reply_webhook",
+      "name": "Email Reply Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2000,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Process email reply and classify response\nconst emailData = $input.first().json;\nconst fromEmail = emailData.from || '';\nconst subject = emailData.subject || '';\nconst body = emailData.body || emailData.text || '';\n\n// Classify email response\nconst responseType = classifyEmailResponse(body);\n\nfunction classifyEmailResponse(body) {\n  const lowerBody = body.toLowerCase();\n  \n  // Positive responses\n  if (lowerBody.includes('interested') || \n      lowerBody.includes('tell me more') || \n      lowerBody.includes('schedule') || \n      lowerBody.includes('meeting')) {\n    return 'interested';\n  }\n  \n  // Out of office\n  if (lowerBody.includes('out of office') || \n      lowerBody.includes('vacation') || \n      lowerBody.includes('auto-reply')) {\n    return 'out_of_office';\n  }\n  \n  // Not interested\n  if (lowerBody.includes('not interested') || \n      lowerBody.includes('no thank') || \n      lowerBody.includes('remove') || \n      lowerBody.includes('unsubscribe')) {\n    return 'not_interested';\n  }\n  \n  // Request for more info\n  if (lowerBody.includes('more information') || \n      lowerBody.includes('tell me more') || \n      lowerBody.includes('details')) {\n    return 'request_info';\n  }\n  \n  return 'neutral_response';\n}\n\nreturn {\n  json: {\n    fromEmail: fromEmail,\n    subject: subject,\n    body: body,\n    responseType: responseType,\n    receivedAt: new Date().toISOString()\n  }\n};"
+      },
+      "id": "process_email_reply",
+      "name": "Process Email Reply",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2220,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": "your_google_sheet_id",
+        "sheetName": "Leads",
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "status": "={{ $json.responseType }}",
+            "emailReplyReceived": true,
+            "emailReplyDate": "={{ $json.receivedAt }}",
+            "emailReplyContent": "={{ $json.body }}",
+            "lastContactDate": "={{ $json.receivedAt }}"
+          }
+        },
+        "options": {
+          "lookupColumn": "email",
+          "lookupValue": "={{ $json.fromEmail }}"
+        }
+      },
+      "id": "update_reply_status",
+      "name": "Update Reply Status",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4,
+      "position": [
+        2440,
+        460
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "google_sheets_oauth",
+          "name": "Google Sheets OAuth"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "interested_condition",
+              "leftValue": "={{ $json.responseType }}",
+              "rightValue": "interested",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check_if_interested",
+      "name": "Check If Interested",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        2660,
+        460
+      ]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "create",
+        "chatInput": "Generate a follow-up email response to this interested prospect:\n\nOriginal email body: {{ $json.body }}\nProspect: {{ $json.firstName }} {{ $json.lastName }}\nCompany: {{ $json.companyName }}\nIndustry: {{ $json.companyIndustry }}\n\nGenerate a professional follow-up email that:\n1. Thanks them for their interest\n2. Provides 2-3 key benefits specific to their industry\n3. Suggests scheduling a brief call\n4. Includes 3 time slots for next week\n5. Keeps it under 120 words\n\nFormat as:\nSUBJECT: [subject]\nBODY: [email body]",
+        "options": {
+          "temperature": 0.7,
+          "maximumTokens": 400
+        }
+      },
+      "id": "generate_followup_email",
+      "name": "Generate Follow-up Email",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1,
+      "position": [
+        2880,
+        400
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "openai_api",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse follow-up email content\nconst aiResponse = $input.first().json.choices[0].message.content;\nconst leadData = $input.first().json;\n\n// Extract subject and body\nconst subjectMatch = aiResponse.match(/SUBJECT:\\s*(.+?)\\n/i);\nconst bodyMatch = aiResponse.match(/BODY:\\s*([\\s\\S]+)/i);\n\nconst subject = subjectMatch ? subjectMatch[1].trim() : `Re: ${leadData.subject}`;\nconst body = bodyMatch ? bodyMatch[1].trim() : aiResponse;\n\nreturn {\n  json: {\n    ...leadData,\n    followupSubject: subject,\n    followupBody: body\n  }\n};"
+      },
+      "id": "parse_followup_email",
+      "name": "Parse Follow-up Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        3100,
+        400
+      ]
+    },
+    {
+      "parameters": {
+        "fromEmail": "your-email@yourdomain.com",
+        "toEmail": "={{ $json.fromEmail }}",
+        "subject": "={{ $json.followupSubject }}",
+        "text": "={{ $json.followupBody }}"
+      },
+      "id": "send_followup_email",
+      "name": "Send Follow-up Email",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 2,
+      "position": [
+        3320,
+        400
+      ],
+      "credentials": {
+        "smtp": {
+          "id": "smtp_credentials",
+          "name": "SMTP Credentials"
+        }
+      }
+    }
+  ],
+  "connections": {
+    "lead_discovery_trigger": {
+      "main": [
+        [
+          {
+            "node": "apollo_lead_discovery",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "apollo_lead_discovery": {
+      "main": [
+        [
+          {
+            "node": "lead_enrichment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "lead_enrichment": {
+      "main": [
+        [
+          {
+            "node": "save_to_sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "save_to_sheets": {
+      "main": [
+        [
+          {
+            "node": "ai_email_generation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ai_email_generation": {
+      "main": [
+        [
+          {
+            "node": "parse_email_content",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_email_content": {
+      "main": [
+        [
+          {
+            "node": "send_cold_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "send_cold_email": {
+      "main": [
+        [
+          {
+            "node": "update_email_status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_email_status": {
+      "main": [
+        [
+          {
+            "node": "wait_5_days",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "wait_5_days": {
+      "main": [
+        [
+          {
+            "node": "check_lead_status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_lead_status": {
+      "main": [
+        [
+          {
+            "node": "check_if_no_response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_if_no_response": {
+      "main": [
+        [
+          {
+            "node": "initiate_cold_call",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "initiate_cold_call": {
+      "main": [
+        [
+          {
+            "node": "call_completion_webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "call_completion_webhook": {
+      "main": [
+        [
+          {
+            "node": "process_call_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_call_data": {
+      "main": [
+        [
+          {
+            "node": "update_call_status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_call_status": {
+      "main": [
+        [
+          {
+            "node": "check_meeting_interest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_meeting_interest": {
+      "main": [
+        [
+          {
+            "node": "extract_meeting_preferences",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "extract_meeting_preferences": {
+      "main": [
+        [
+          {
+            "node": "get_calendar_list",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "get_calendar_list": {
+      "main": [
+        [
+          {
+            "node": "process_scheduling_data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_scheduling_data": {
+      "main": [
+        [
+          {
+            "node": "create_meeting",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "create_meeting": {
+      "main": [
+        [
+          {
+            "node": "update_meeting_status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_meeting_status": {
+      "main": [
+        [
+          {
+            "node": "send_meeting_confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "email_reply_webhook": {
+      "main": [
+        [
+          {
+            "node": "process_email_reply",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "process_email_reply": {
+      "main": [
+        [
+          {
+            "node": "update_reply_status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "update_reply_status": {
+      "main": [
+        [
+          {
+            "node": "check_if_interested",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "check_if_interested": {
+      "main": [
+        [
+          {
+            "node": "generate_followup_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "generate_followup_email": {
+      "main": [
+        [
+          {
+            "node": "parse_followup_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "parse_followup_email": {
+      "main": [
+        [
+          {
+            "node": "send_followup_email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2024-01-01T00:00:00.000Z",
+      "updatedAt": "2024-01-01T00:00:00.000Z",
+      "id": "lead_automation",
+      "name": "Lead Automation"
+    }
+  ],
+  "triggerCount": 1,
+  "updatedAt": "2024-01-01T00:00:00.000Z",
+  "versionId": "1"
+}
